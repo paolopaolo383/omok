@@ -9,6 +9,7 @@ using Unity.VisualScripting;
 
 public class NetworkManager : MonoBehaviourPunCallbacks
 {
+	public int see = 0;
     [Header("DisconnectPanel")]
     public InputField NickNameInput;
 
@@ -32,7 +33,6 @@ public class NetworkManager : MonoBehaviourPunCallbacks
 	public GameObject[] tiles = new GameObject[82];
 
 	[Header("ETC")]
-    public Text StatusText;
     public PhotonView PV;
 	public Sprite Otile;
 	public Sprite Xtile;
@@ -95,16 +95,24 @@ public class NetworkManager : MonoBehaviourPunCallbacks
 
 
     #region 서버연결
-    void Awake() => Screen.SetResolution(960, 540, false);
+    void Awake()
+	{
+		if(PlayerPrefs.HasKey("NAME"))
+		{
+			NickNameInput.text = PlayerPrefs.GetString("NAME");
+			Connect();
+		}
+	}
 
     void Update()
     {
-        StatusText.text = PhotonNetwork.NetworkClientState.ToString();
         LobbyInfoText.text = (PhotonNetwork.CountOfPlayers - PhotonNetwork.CountOfPlayersInRooms) + "로비 / " + PhotonNetwork.CountOfPlayers + "접속";
     }
 
-    public void Connect() => PhotonNetwork.ConnectUsingSettings();
-
+    public void Connect() {
+		PhotonNetwork.ConnectUsingSettings();
+		PlayerPrefs.SetString("NAME", NickNameInput.text);
+	}
     public override void OnConnectedToMaster() => PhotonNetwork.JoinLobby();
 
     public override void OnJoinedLobby()
@@ -278,6 +286,7 @@ public class NetworkManager : MonoBehaviourPunCallbacks
 
 		int gridnum = num / 9;
 		int tilenum = num % 9;
+		see = gridnum*1000+tilenum;
 		if (turna == 0)
 		{
 			tiles[num].GetComponent<Image>().sprite = Otile;
@@ -288,15 +297,10 @@ public class NetworkManager : MonoBehaviourPunCallbacks
 			tiles[num].GetComponent<Image>().sprite = Xtile;
 			turn = 0;
 		}
-		bool a = false;
+
 		for (int i = 0; i < 9; i++)
 		{
 			masks[i].SetActive(true);
-
-			if (!tiles[num - tilenum + i].GetComponent<Button>().interactable)
-			{
-				a = true;
-			}
 		}
 		masks[tilenum].SetActive(false);
 		
@@ -380,14 +384,16 @@ public class NetworkManager : MonoBehaviourPunCallbacks
 		{
 			if ((winn ==-1&&myturn==0)|| (winn == myturn))
 			{
-				PV.RPC("gridwin", RpcTarget.All, winn,gridnum,tilenum,a);
+				PV.RPC("gridwin", RpcTarget.All, winn,gridnum,tilenum);
 			}
 		}
+
+
 		if(!isfirst)
 		{
 			return;
 		}
-		if (map[tilenum / 3, tilenum % 3] != 0||!a)
+		if (map[tilenum / 3, tilenum % 3] != 0)
 		{
 			for (int i = 0; i < 9; i++)
 			{
@@ -398,11 +404,10 @@ public class NetworkManager : MonoBehaviourPunCallbacks
 					masks[i].SetActive(true);
 				}
 			}
-			
 		}
 	}
 	[PunRPC]
-	public void gridwin(int winner, int gridnum, int tilenum, bool a)
+	public void gridwin(int winner, int gridnum, int tilenum)
 	{
 		if(winner==-1)
 		{
@@ -413,18 +418,17 @@ public class NetworkManager : MonoBehaviourPunCallbacks
 			masks[gridnum].GetComponent<Image>().sprite = Xtile;
 		}
 		map[gridnum / 3, gridnum % 3] = winner;
-		if (map[tilenum / 3, tilenum % 3] != 0||!a)
+		if (map[tilenum / 3, tilenum % 3] != 0)
 		{
 			for (int i = 0; i < 9; i++)
 			{
 
 				masks[i].SetActive(false);
-				if (map[i / 3, i % 3] != 0)
+				if ((map[i / 3, i % 3] != 0))
 				{
 					masks[i].SetActive(true);
 				}
 			}
-
 		}
 		bool iswin = false;
 		for (int i = 0; i < 3; i++)
